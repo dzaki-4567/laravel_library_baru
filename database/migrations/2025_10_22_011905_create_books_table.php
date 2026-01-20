@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string("author", 100);
             $table->integer("qty");
             $table->integer("year");
+            $table->integer("cover")->nullable();
+            $table->integer("filename")->nullable();
             $table->timestamps();
         });
     }
