@@ -1,20 +1,17 @@
 <?php
 
-namespace App\Http\Controllers\API;
-
 use App\Http\Controllers\Controller;
-use App\Models\Book;
+use App\Models\Category;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class CategoryServiceController extends Controller
 {
-    private $book;
+    private $category;
 
-    public function __construct(Book $book)
+    public function __construct(Category $category)
     {
-        $this->book = $book;
+        $this->category = $category;
     }
 
     /**
@@ -24,7 +21,7 @@ class CategoryServiceController extends Controller
     {
         return response([
             'message' => 'list book found!',
-            'data' => $this->book->withCategory(),
+            'data' => $this->category->withCategory(),
         ]);
     }
 
@@ -34,36 +31,21 @@ class CategoryServiceController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'category_id' => 'required|integer|exists:categories,id',
-            'title' => 'required|string|min:4|max:255',
-            'author' => 'required|string|min:4|max:255',
-            'qty' => 'required|integer',
-            'year' => 'required|digits:4',
-            'cover' => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:1024',
-        ]);
+            'category_name' => 'required|string|min:3|max:100|unique:categories',],
+            [
+                'category_name.required' =>'category is required',
+                'category_name.min' =>'category must be at least 3 character',
+                'category_name.unipue' =>'category haas already on database',
+            ]);
 
-        $filename = '';
+            $category = Category::create([
+                'category_name' => $request->category_name
+            ]);
 
-        if ($request->file('cover')) {
-            $filename = Carbon::now()->format('YmdHis').'.'.$request->file('cover')->extension();
-            $request->file('cover')->storeAs('upload', $filename, 'public');
-
-            // $request->file('cover')->move(public_path('upload/'), $filename);
-        }
-
-        $this->book->create([
-            'category_id' => $request->category_id,
-            'title' => $request->title,
-            'author' => $request->author,
-            'qty' => $request->qty,
-            'year' => $request->year,
-            'cover' => $request->file('cover') ? url('storage/upload/'.$filename) : null,
-            'filename' => $filename,
-        ]);
-
-        return response([
-            'message' => 'book has been created!',
-        ], 201);
+            return response([
+                'message' => 'category cerated succesfully',
+                'data' => $category,
+            ], 201);
     }
 
     /**
@@ -71,19 +53,9 @@ class CategoryServiceController extends Controller
      */
     public function show(string $id)
     {
-        $data = $this->book->withCategory()->find($id);
+        $data = Category::find($id);
 
-        if (! isset($data)) {
-            return response([
-                'message' => 'list book not found!',
-                'data' => $data,
-            ], 404);
-        }
-
-        return response([
-            'message' => 'book found!',
-            'data' => $data,
-        ]);
+        return view("categories.edit", compact('data'));
     }
 
     /**
@@ -92,51 +64,29 @@ class CategoryServiceController extends Controller
     public function update(Request $request, string $id)
     {
         $request->validate([
-            'category_id' => 'required|integer|exists:categories,id',
-            'title' => 'required|string|min:4|max:255',
-            'author' => 'required|string|min:4|max:255',
-            'qty' => 'required|integer',
-            'year' => 'required|digits:4',
-            'cover' => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:1024',
+            'category_name' => 'required|unique:categories,category_name'
+        ],[
+            'category_name.required' => "Category is required boss!!",
+            'category_name.unique' => "Category has already on database my bos!!",
         ]);
 
-        $filename = '';
+        $data = Category::find($id);
+        $data->category_name = $request->category_name;
+        $data->save();
 
-        $detail = $this->book->findOrFail($id);
-
-        if ($request->file('cover')) {
-
-            Storage::disk('upload')->delete($detail->filename);
-
-            $filename = Carbon::now()->format('YmdHis').'.'.$request->file('cover')->extension();
-            $request->file('cover')->storeAs('upload', $filename, 'public');
-
-            // $request->file('cover')->move(public_path('upload/'), $filename);
-        }
-
-        $detail->category_id = $request->category_id;
-        $detail->title = $request->title;
-        $detail->author = $request->author;
-        $detail->qty = $request->qty;
-        $detail->year = $request->year;
-
-        if ($request->file('cover')) {
-            $detail->cover = url('storage/upload/'.$filename);
-            $detail->filename = $filename;
-        }
-
-        $detail->save();
-
-        return response([
-            'message' => 'book has been updated!',
-        ], 201);
-    }
+        return redirect("/admin/category")->with("success", "category has been updated!");    }
 
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)
     {
-        //
+        $category = $this->category->FindOrFail($id);
+        $category->delete($id);
+
+        return response([
+            'message' => 'category cerated succesfully',
+            'data' => $category,
+        ], 201);
     }
 }
